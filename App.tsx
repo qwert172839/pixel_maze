@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { DungeonTheme, Position, Entity } from './types';
 import { THEME_CONFIG, TILE_SIZE } from './constants';
 import GameCanvas from './components/GameCanvas';
-import { generateDungeonLore } from './services/geminiService';
 
 const INITIAL_POS: Position = { x: 1, y: 1 };
 const GRID_SIZE = 15;
@@ -114,7 +113,7 @@ const App: React.FC = () => {
     const monsterCount = Math.min(12, 5 + Math.floor(currentFloor / 2));
     let monstersPlaced = 0;
     while (monstersPlaced < monsterCount && floorTiles.length > 0) {
-      const isElite = Math.random() < 0.2; // 20% 확률로 정예 출현
+      const isElite = Math.random() < 0.2; 
       const sIdx = Math.floor(Math.random() * floorTiles.length);
       const sPos = floorTiles.splice(sIdx, 1)[0];
       const stats = getMonsterStats(currentFloor, isElite);
@@ -134,6 +133,11 @@ const App: React.FC = () => {
     setEntities(newEntities);
     setPlayerPos(INITIAL_POS);
     setShowExitConfirm(false);
+
+    // AI API 대신 로컬 상수를 사용하여 나레이션 설정
+    const themeLores = THEME_CONFIG[newTheme].lores;
+    const randomLore = themeLores[Math.floor(Math.random() * themeLores.length)];
+    setLore(randomLore);
   }, []);
 
   const getRandomPowerUp = (isLegendary: boolean): PowerUp => {
@@ -173,7 +177,7 @@ const App: React.FC = () => {
     setEntities(prev => {
       return prev.map(ent => {
         if (ent.type !== 'slime' && ent.type !== 'elite-slime') return ent;
-        const moveChance = ent.type === 'elite-slime' ? 0.6 : 0.4; // 정예가 조금 더 자주 움직임
+        const moveChance = ent.type === 'elite-slime' ? 0.6 : 0.4; 
         if (Math.random() < moveChance) return ent;
         const directions = [{ dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 }];
         const dir = directions[Math.floor(Math.random() * directions.length)];
@@ -192,14 +196,12 @@ const App: React.FC = () => {
   }, [playerPos, floor]);
 
   useEffect(() => {
-    const init = async () => {
-      setIsLoading(true);
-      generateLevel(theme, floor);
-      const text = await generateDungeonLore(theme);
-      setLore(text);
-      setIsLoading(false);
-    };
-    init();
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+        generateLevel(theme, floor);
+        setIsLoading(false);
+    }, 300); // 아주 짧은 로딩 효과
+    return () => clearTimeout(timer);
   }, [theme, floor, generateLevel]);
 
   useEffect(() => {
@@ -318,7 +320,6 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-950 text-slate-200">
-      {/* --- Sidebar --- */}
       <div className="w-full md:w-80 p-6 flex flex-col gap-6 bg-slate-900 border-r border-slate-800 z-10 overflow-y-auto">
         <header>
           <div className="flex justify-between items-end mb-1">
@@ -377,7 +378,6 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* --- Main Area --- */}
       <main className="flex-1 flex flex-col items-center justify-center p-4 relative">
         <div className="absolute inset-0 opacity-20" style={{ backgroundColor: THEME_CONFIG[theme].floorColor }} />
 
@@ -456,11 +456,9 @@ const App: React.FC = () => {
           </div>
 
           <div className="mt-6 w-full p-6 bg-black/90 border-2 border-slate-800 rounded-xl shadow-2xl min-h-[120px] flex items-center justify-center">
-            {!isLoading && (
-              <p className="text-base md:text-lg leading-relaxed text-slate-100 text-center font-medium w-full italic">
-                "{lore}"
-              </p>
-            )}
+            <p className="text-base md:text-lg leading-relaxed text-slate-100 text-center font-medium w-full italic">
+              "{lore}"
+            </p>
           </div>
         </div>
       </main>
