@@ -325,11 +325,11 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-slate-950 text-slate-200">
+    <div className="flex flex-col md:flex-row h-[100dvh] bg-slate-950 text-slate-200 overflow-hidden">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setShowMobileSidebar(!showMobileSidebar)}
-        className="md:hidden fixed top-4 left-4 z-50 w-12 h-12 bg-slate-800 border-2 border-slate-600 rounded-lg flex items-center justify-center text-slate-300 shadow-lg"
+        className="md:hidden fixed top-4 left-4 z-50 w-10 h-10 bg-slate-800 border-2 border-slate-600 rounded-lg flex items-center justify-center text-slate-300 shadow-lg opacity-80"
       >
         {showMobileSidebar ? '✕' : '☰'}
       </button>
@@ -393,11 +393,11 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      <main className="flex-1 flex flex-col items-center justify-center p-4 relative">
+      <main className="flex-1 flex flex-col items-center justify-center p-2 md:p-4 relative w-full h-full">
         <div className="absolute inset-0 opacity-20" style={{ backgroundColor: THEME_CONFIG[theme].floorColor }} />
 
-        <div className={`relative z-10 w-full max-w-2xl flex flex-col items-center transition-transform ${isAttacking ? 'scale-95' : 'scale-100'}`}>
-          <div className="relative shadow-[0_0_60px_rgba(0,0,0,0.8)] rounded-lg overflow-hidden border-2 border-slate-800 bg-slate-900">
+        <div className={`relative z-10 w-full max-w-2xl flex flex-col items-center transition-transform ${isAttacking ? 'scale-95' : 'scale-100'} h-full justify-center`}>
+          <div className="relative shadow-[0_0_60px_rgba(0,0,0,0.8)] rounded-lg overflow-hidden border-2 border-slate-800 bg-slate-900 shrink-0 max-w-full" style={{ maxHeight: '60vh', aspectRatio: '1/1' }}>
             <GameCanvas theme={theme} playerPos={playerPos} entities={entities} />
 
             {playerHealth <= 0 && (
@@ -477,29 +477,29 @@ const App: React.FC = () => {
           </div>
 
           {/* Mobile Touch Controls */}
-          <div className="mt-6 w-full flex flex-col items-center gap-2 md:hidden">
+          <div className="mt-2 w-full flex flex-col items-center gap-1 md:hidden shrink-0 pb-2">
             <button
               onClick={() => handleMove(0, -1)}
-              className="w-16 h-16 bg-slate-800 hover:bg-slate-700 active:bg-amber-600 border-2 border-slate-600 rounded-lg flex items-center justify-center text-2xl font-bold text-slate-300 transition-all shadow-lg"
+              className="w-14 h-14 bg-slate-800 hover:bg-slate-700 active:bg-amber-600 border-2 border-slate-600 rounded-lg flex items-center justify-center text-xl font-bold text-slate-300 transition-all shadow-lg"
             >
               ▲
             </button>
             <div className="flex gap-2">
               <button
                 onClick={() => handleMove(-1, 0)}
-                className="w-16 h-16 bg-slate-800 hover:bg-slate-700 active:bg-amber-600 border-2 border-slate-600 rounded-lg flex items-center justify-center text-2xl font-bold text-slate-300 transition-all shadow-lg"
+                className="w-14 h-14 bg-slate-800 hover:bg-slate-700 active:bg-amber-600 border-2 border-slate-600 rounded-lg flex items-center justify-center text-xl font-bold text-slate-300 transition-all shadow-lg"
               >
                 ◀
               </button>
               <button
                 onClick={() => handleMove(0, 1)}
-                className="w-16 h-16 bg-slate-800 hover:bg-slate-700 active:bg-amber-600 border-2 border-slate-600 rounded-lg flex items-center justify-center text-2xl font-bold text-slate-300 transition-all shadow-lg"
+                className="w-14 h-14 bg-slate-800 hover:bg-slate-700 active:bg-amber-600 border-2 border-slate-600 rounded-lg flex items-center justify-center text-xl font-bold text-slate-300 transition-all shadow-lg"
               >
                 ▼
               </button>
               <button
                 onClick={() => handleMove(1, 0)}
-                className="w-16 h-16 bg-slate-800 hover:bg-slate-700 active:bg-amber-600 border-2 border-slate-600 rounded-lg flex items-center justify-center text-2xl font-bold text-slate-300 transition-all shadow-lg"
+                className="w-14 h-14 bg-slate-800 hover:bg-slate-700 active:bg-amber-600 border-2 border-slate-600 rounded-lg flex items-center justify-center text-xl font-bold text-slate-300 transition-all shadow-lg"
               >
                 ▶
               </button>

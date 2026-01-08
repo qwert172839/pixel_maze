@@ -52,7 +52,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ theme, playerPos, entities }) =
         case 'elite-slime':
           const isElite = ent.type === 'elite-slime';
           const baseColor = theme === DungeonTheme.LAVA ? '#f87171' : theme === DungeonTheme.FROZEN ? '#7dd3fc' : '#4ade80';
-          
+
           if (isElite) {
             ctx.shadowBlur = 15;
             ctx.shadowColor = '#fbbf24';
@@ -68,15 +68,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ theme, playerPos, entities }) =
           ctx.beginPath();
           ctx.arc(x + TILE_SIZE / 2, y + TILE_SIZE / 2 + (isElite ? 3 : 5), radius, 0, Math.PI * 2);
           ctx.fill();
-          
+
           // Eyes
           ctx.fillStyle = 'black';
           const eyeOffset = isElite ? 4 : 4;
-          ctx.fillRect(x + TILE_SIZE/2 - eyeOffset - 1, y + TILE_SIZE/2 + (isElite ? 0 : 4), 2, 2);
-          ctx.fillRect(x + TILE_SIZE/2 + eyeOffset - 1, y + TILE_SIZE/2 + (isElite ? 0 : 4), 2, 2);
+          ctx.fillRect(x + TILE_SIZE / 2 - eyeOffset - 1, y + TILE_SIZE / 2 + (isElite ? 0 : 4), 2, 2);
+          ctx.fillRect(x + TILE_SIZE / 2 + eyeOffset - 1, y + TILE_SIZE / 2 + (isElite ? 0 : 4), 2, 2);
 
           if (ent.health !== undefined && ent.maxHealth !== undefined) {
-            const hpWidth = Math.max(0, (ent.health / ent.maxHealth) * 24); 
+            const hpWidth = Math.max(0, (ent.health / ent.maxHealth) * 24);
             ctx.fillStyle = '#1e293b';
             ctx.fillRect(x + 4, y - 2, 24, 4);
             ctx.fillStyle = isElite ? '#fbbf24' : '#ef4444';
@@ -146,11 +146,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ theme, playerPos, entities }) =
 
   return (
     <div className="relative border-4 border-slate-700 rounded-lg overflow-hidden">
-      <canvas 
-        ref={canvasRef} 
-        width={TILE_SIZE * 15} 
+      <canvas
+        ref={canvasRef}
+        width={TILE_SIZE * 15}
         height={TILE_SIZE * 15}
-        className="block bg-slate-900"
+        className="block bg-slate-900 w-full h-auto"
+        style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
       />
     </div>
   );
