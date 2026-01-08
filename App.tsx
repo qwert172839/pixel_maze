@@ -46,6 +46,7 @@ const App: React.FC = () => {
   const [powerUps, setPowerUps] = useState<PowerUp[]>([]);
   const [showShop, setShowShop] = useState<boolean>(false);
   const [showExitConfirm, setShowExitConfirm] = useState<boolean>(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState<boolean>(false);
 
   useEffect(() => {
     localStorage.setItem('pixel_dungeon_coins', totalCoins.toString());
@@ -113,21 +114,21 @@ const App: React.FC = () => {
     const monsterCount = Math.min(12, 5 + Math.floor(currentFloor / 2));
     let monstersPlaced = 0;
     while (monstersPlaced < monsterCount && floorTiles.length > 0) {
-      const isElite = Math.random() < 0.2; 
+      const isElite = Math.random() < 0.2;
       const sIdx = Math.floor(Math.random() * floorTiles.length);
       const sPos = floorTiles.splice(sIdx, 1)[0];
       const stats = getMonsterStats(currentFloor, isElite);
-      newEntities.push({ 
-        id: `m-${sPos.x}-${sPos.y}`, 
-        type: isElite ? 'elite-slime' : 'slime', 
-        pos: sPos, 
+      newEntities.push({
+        id: `m-${sPos.x}-${sPos.y}`,
+        type: isElite ? 'elite-slime' : 'slime',
+        pos: sPos,
         health: stats.hp,
-        maxHealth: stats.hp 
+        maxHealth: stats.hp
       });
       monstersPlaced++;
     }
 
-    const torchPositions = [{x: 7, y: 7}, {x: 3, y: 3}, {x: 11, y: 3}, {x: 3, y: 11}, {x: 11, y: 11}];
+    const torchPositions = [{ x: 7, y: 7 }, { x: 3, y: 3 }, { x: 11, y: 3 }, { x: 3, y: 11 }, { x: 11, y: 11 }];
     torchPositions.forEach((p, idx) => newEntities.push({ id: `torch-${idx}`, type: 'torch', pos: p }));
 
     setEntities(newEntities);
@@ -177,7 +178,7 @@ const App: React.FC = () => {
     setEntities(prev => {
       return prev.map(ent => {
         if (ent.type !== 'slime' && ent.type !== 'elite-slime') return ent;
-        const moveChance = ent.type === 'elite-slime' ? 0.6 : 0.4; 
+        const moveChance = ent.type === 'elite-slime' ? 0.6 : 0.4;
         if (Math.random() < moveChance) return ent;
         const directions = [{ dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 }];
         const dir = directions[Math.floor(Math.random() * directions.length)];
@@ -198,8 +199,8 @@ const App: React.FC = () => {
   useEffect(() => {
     setIsLoading(true);
     const timer = setTimeout(() => {
-        generateLevel(theme, floor);
-        setIsLoading(false);
+      generateLevel(theme, floor);
+      setIsLoading(false);
     }, 300); // 아주 짧은 로딩 효과
     return () => clearTimeout(timer);
   }, [theme, floor, generateLevel]);
@@ -222,10 +223,10 @@ const App: React.FC = () => {
     if (updatedHealth <= 0) {
       const isElite = target.type === 'elite-slime';
       setEntities(prev => prev.filter(e => e.id !== target.id));
-      
+
       const scoreGain = isElite ? (50 + floor * 10) * 5 : (50 + floor * 10);
       setScore(s => s + scoreGain);
-      
+
       if (isElite) {
         const coinGain = 20 + Math.floor(Math.random() * 30);
         setTotalCoins(c => c + coinGain);
@@ -244,6 +245,45 @@ const App: React.FC = () => {
     setShowExitConfirm(false);
   };
 
+  const handleMove = (dx: number, dy: number) => {
+    if (playerHealth <= 0 || isLoading || showShop || showExitConfirm) return;
+    if (dx === 0 && dy === 0) return;
+    const newX = playerPos.x + dx;
+    const newY = playerPos.y + dy;
+    if (newX < 0 || newX >= GRID_SIZE || newY < 0 || newY >= GRID_SIZE) return;
+    const colliders = entities.filter(ent => ent.pos.x === newX && ent.pos.y === newY);
+    const wall = colliders.find(e => e.type === 'wall');
+    if (wall) return;
+
+    const target = colliders.find(e => e.type === 'slime' || e.type === 'elite-slime');
+    if (target) {
+      handleAttack(target);
+      const stats = getMonsterStats(floor, target.type === 'elite-slime');
+      setPlayerHealth(prev => Math.max(0, prev - Math.floor(stats.dmg / 3)));
+      return;
+    }
+
+    colliders.forEach(collision => {
+      if (collision.type === 'key') {
+        setHasKey(true);
+        setEntities(prev => prev.filter(e => e.id !== collision.id));
+        setLore("열쇠를 획득했습니다!");
+      } else if (collision.type === 'chest' || collision.type === 'golden-chest') {
+        if (!collision.isOpened && hasKey) {
+          const isLegendary = collision.type === 'golden-chest';
+          const newItem = getRandomPowerUp(isLegendary);
+          applyPowerUp(newItem);
+          setLore(isLegendary ? `★전설★ [${newItem.name}] 획득!` : `[${newItem.name}] 획득!`);
+          setScore(s => s + 500 + (floor * 50));
+          setEntities(prev => prev.map(e => e.id === collision.id ? { ...e, isOpened: true } : e));
+        }
+      } else if (collision.type === 'exit') {
+        setShowExitConfirm(true);
+      }
+    });
+    setPlayerPos({ x: newX, y: newY });
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (playerHealth <= 0 || isLoading || showShop || showExitConfirm) return;
@@ -253,41 +293,7 @@ const App: React.FC = () => {
       if (key === 'arrowdown' || key === 's') dy = 1;
       if (key === 'arrowleft' || key === 'a') dx = -1;
       if (key === 'arrowright' || key === 'd') dx = 1;
-      if (dx === 0 && dy === 0) return;
-      const newX = playerPos.x + dx;
-      const newY = playerPos.y + dy;
-      if (newX < 0 || newX >= GRID_SIZE || newY < 0 || newY >= GRID_SIZE) return;
-      const colliders = entities.filter(ent => ent.pos.x === newX && ent.pos.y === newY);
-      const wall = colliders.find(e => e.type === 'wall');
-      if (wall) return;
-      
-      const target = colliders.find(e => e.type === 'slime' || e.type === 'elite-slime');
-      if (target) {
-        handleAttack(target);
-        const stats = getMonsterStats(floor, target.type === 'elite-slime');
-        setPlayerHealth(prev => Math.max(0, prev - Math.floor(stats.dmg / 3))); 
-        return;
-      }
-
-      colliders.forEach(collision => {
-        if (collision.type === 'key') {
-          setHasKey(true);
-          setEntities(prev => prev.filter(e => e.id !== collision.id));
-          setLore("열쇠를 획득했습니다!");
-        } else if (collision.type === 'chest' || collision.type === 'golden-chest') {
-          if (!collision.isOpened && hasKey) {
-            const isLegendary = collision.type === 'golden-chest';
-            const newItem = getRandomPowerUp(isLegendary);
-            applyPowerUp(newItem);
-            setLore(isLegendary ? `★전설★ [${newItem.name}] 획득!` : `[${newItem.name}] 획득!`);
-            setScore(s => s + 500 + (floor * 50));
-            setEntities(prev => prev.map(e => e.id === collision.id ? { ...e, isOpened: true } : e));
-          }
-        } else if (collision.type === 'exit') {
-          setShowExitConfirm(true);
-        }
-      });
-      setPlayerPos({ x: newX, y: newY });
+      handleMove(dx, dy);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -320,11 +326,20 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-950 text-slate-200">
-      <div className="w-full md:w-80 p-6 flex flex-col gap-6 bg-slate-900 border-r border-slate-800 z-10 overflow-y-auto">
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+        className="md:hidden fixed top-4 left-4 z-50 w-12 h-12 bg-slate-800 border-2 border-slate-600 rounded-lg flex items-center justify-center text-slate-300 shadow-lg"
+      >
+        {showMobileSidebar ? '✕' : '☰'}
+      </button>
+
+      {/* Sidebar */}
+      <div className={`w-full md:w-80 p-6 flex flex-col gap-6 bg-slate-900 border-r border-slate-800 z-40 overflow-y-auto transition-transform md:translate-x-0 ${showMobileSidebar ? 'fixed inset-0 translate-x-0' : 'fixed -translate-x-full md:relative'}`}>
         <header>
           <div className="flex justify-between items-end mb-1">
-             <h1 className="text-3xl font-bold text-amber-500 leading-none tracking-tighter">픽셀 미로</h1>
-             <span className="text-xl font-bold text-slate-500">B{floor}</span>
+            <h1 className="text-3xl font-bold text-amber-500 leading-none tracking-tighter">픽셀 미로</h1>
+            <span className="text-xl font-bold text-slate-500">B{floor}</span>
           </div>
           <p className="text-xs text-slate-400 tracking-widest uppercase">Monster Hunter</p>
         </header>
@@ -354,14 +369,14 @@ const App: React.FC = () => {
               ))}
             </div>
           </div>
-          
+
           <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 shadow-inner">
             <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                    <span className="text-xl">💰</span>
-                    <span className="text-amber-400 font-bold">{totalCoins}</span>
-                </div>
-                <button onClick={() => setShowShop(true)} className="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-[10px] font-bold rounded uppercase">영구 강화 상점</button>
+              <div className="flex items-center gap-2">
+                <span className="text-xl">💰</span>
+                <span className="text-amber-400 font-bold">{totalCoins}</span>
+              </div>
+              <button onClick={() => setShowShop(true)} className="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-[10px] font-bold rounded uppercase">영구 강화 상점</button>
             </div>
           </div>
         </div>
@@ -370,7 +385,7 @@ const App: React.FC = () => {
           <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">던전 테마</label>
           <div className="grid grid-cols-1 gap-1">
             {Object.values(DungeonTheme).map((t) => (
-              <button key={t} onClick={() => {setTheme(t); restartGame();}} className={`px-3 py-2 rounded text-left border text-sm ${theme === t ? 'bg-amber-600 border-amber-400 text-white' : 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-300'}`}>
+              <button key={t} onClick={() => { setTheme(t); restartGame(); setShowMobileSidebar(false); }} className={`px-3 py-2 rounded text-left border text-sm ${theme === t ? 'bg-amber-600 border-amber-400 text-white' : 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-300'}`}>
                 <div className="font-bold">{THEME_CONFIG[t].name}</div>
               </button>
             ))}
@@ -384,13 +399,13 @@ const App: React.FC = () => {
         <div className={`relative z-10 w-full max-w-2xl flex flex-col items-center transition-transform ${isAttacking ? 'scale-95' : 'scale-100'}`}>
           <div className="relative shadow-[0_0_60px_rgba(0,0,0,0.8)] rounded-lg overflow-hidden border-2 border-slate-800 bg-slate-900">
             <GameCanvas theme={theme} playerPos={playerPos} entities={entities} />
-            
+
             {playerHealth <= 0 && (
               <div className="absolute inset-0 bg-black/95 flex flex-col items-center justify-center backdrop-blur-md text-center p-6 z-[60]">
                 <h2 className="text-5xl font-bold text-red-600 mb-2">모험 종료</h2>
                 <div className="text-slate-400 mb-4 font-bold text-xl">최종 점수: {score}</div>
                 <div className="bg-amber-900/30 p-4 rounded-lg border border-amber-500/50 mb-8 animate-bounce">
-                    <span className="text-amber-400 font-bold">💰 {Math.floor(score/10)} 코인 획득!</span>
+                  <span className="text-amber-400 font-bold">💰 {Math.floor(score / 10)} 코인 획득!</span>
                 </div>
                 <button onClick={restartGame} className="px-12 py-4 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg shadow-xl">
                   다시 시작
@@ -399,49 +414,49 @@ const App: React.FC = () => {
             )}
 
             {showExitConfirm && (
-                <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center backdrop-blur-md z-[55] p-6 text-center">
-                    <div className="text-4xl mb-4">🪜</div>
-                    <h2 className="text-2xl font-bold text-amber-500 mb-2">지하 계단 발견</h2>
-                    <p className="text-slate-300 mb-8">지하 B{floor + 1}층으로 내려가시겠습니까?<br/><span className="text-xs text-green-400">(체력이 15 회복됩니다)</span></p>
-                    <div className="flex gap-4 w-full max-w-xs">
-                        <button onClick={nextFloor} className="flex-1 py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg border border-amber-400 transition-all">내려가기</button>
-                        <button onClick={() => setShowExitConfirm(false)} className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg border border-slate-700 transition-all">더 둘러보기</button>
-                    </div>
+              <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center backdrop-blur-md z-[55] p-6 text-center">
+                <div className="text-4xl mb-4">🪜</div>
+                <h2 className="text-2xl font-bold text-amber-500 mb-2">지하 계단 발견</h2>
+                <p className="text-slate-300 mb-8">지하 B{floor + 1}층으로 내려가시겠습니까?<br /><span className="text-xs text-green-400">(체력이 15 회복됩니다)</span></p>
+                <div className="flex gap-4 w-full max-w-xs">
+                  <button onClick={nextFloor} className="flex-1 py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg border border-amber-400 transition-all">내려가기</button>
+                  <button onClick={() => setShowExitConfirm(false)} className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg border border-slate-700 transition-all">더 둘러보기</button>
                 </div>
+              </div>
             )}
 
             {showShop && (
               <div className="absolute inset-0 bg-slate-900/95 flex flex-col p-6 backdrop-blur-md z-[70]">
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-3xl font-bold text-amber-500">축복받은 성소</h2>
-                    <div className="flex items-center gap-2 bg-slate-800 px-4 py-1 rounded-full border border-amber-500/30">
-                        <span className="text-xl">💰</span>
-                        <span className="text-amber-400 font-bold">{totalCoins}</span>
-                    </div>
+                  <h2 className="text-3xl font-bold text-amber-500">축복받은 성소</h2>
+                  <div className="flex items-center gap-2 bg-slate-800 px-4 py-1 rounded-full border border-amber-500/30">
+                    <span className="text-xl">💰</span>
+                    <span className="text-amber-400 font-bold">{totalCoins}</span>
+                  </div>
                 </div>
                 <div className="grid gap-4 flex-1">
-                    {[
-                        { id: 'baseDamage', name: '영구 근력 강화', icon: '⚔️', val: 2, cost: 200, current: permUpgrades.baseDamage },
-                        { id: 'baseMaxHealth', name: '영구 체력 훈련', icon: '🛡️', val: 10, cost: 200, current: permUpgrades.baseMaxHealth },
-                        { id: 'baseSlowdown', name: '영구 신속의 가루', icon: '👟', val: 50, cost: 300, current: permUpgrades.baseSlowdown },
-                    ].map(u => (
-                        <div key={u.id} className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center group hover:border-amber-500/50 transition-colors">
-                            <div className="flex items-center gap-4">
-                                <span className="text-3xl grayscale group-hover:grayscale-0 transition-all">{u.icon}</span>
-                                <div>
-                                    <div className="font-bold text-slate-100">{u.name}</div>
-                                    <div className="text-[10px] text-slate-500 uppercase tracking-widest">현재 보너스: +{u.current}</div>
-                                </div>
-                            </div>
-                            <button 
-                                onClick={() => buyUpgrade(u.id as any, u.cost, u.val)}
-                                disabled={totalCoins < u.cost}
-                                className={`px-4 py-2 rounded-lg font-bold transition-all ${totalCoins >= u.cost ? 'bg-amber-600 hover:bg-amber-500' : 'bg-slate-700 opacity-50 cursor-not-allowed'}`}
-                            >
-                                💰 {u.cost}
-                            </button>
+                  {[
+                    { id: 'baseDamage', name: '영구 근력 강화', icon: '⚔️', val: 2, cost: 200, current: permUpgrades.baseDamage },
+                    { id: 'baseMaxHealth', name: '영구 체력 훈련', icon: '🛡️', val: 10, cost: 200, current: permUpgrades.baseMaxHealth },
+                    { id: 'baseSlowdown', name: '영구 신속의 가루', icon: '👟', val: 50, cost: 300, current: permUpgrades.baseSlowdown },
+                  ].map(u => (
+                    <div key={u.id} className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center group hover:border-amber-500/50 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <span className="text-3xl grayscale group-hover:grayscale-0 transition-all">{u.icon}</span>
+                        <div>
+                          <div className="font-bold text-slate-100">{u.name}</div>
+                          <div className="text-[10px] text-slate-500 uppercase tracking-widest">현재 보너스: +{u.current}</div>
                         </div>
-                    ))}
+                      </div>
+                      <button
+                        onClick={() => buyUpgrade(u.id as any, u.cost, u.val)}
+                        disabled={totalCoins < u.cost}
+                        className={`px-4 py-2 rounded-lg font-bold transition-all ${totalCoins >= u.cost ? 'bg-amber-600 hover:bg-amber-500' : 'bg-slate-700 opacity-50 cursor-not-allowed'}`}
+                      >
+                        💰 {u.cost}
+                      </button>
+                    </div>
+                  ))}
                 </div>
                 <button onClick={() => setShowShop(false)} className="mt-6 w-full py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl border border-slate-700">상점 나가기</button>
               </div>
@@ -459,6 +474,36 @@ const App: React.FC = () => {
             <p className="text-base md:text-lg leading-relaxed text-slate-100 text-center font-medium w-full italic">
               "{lore}"
             </p>
+          </div>
+
+          {/* Mobile Touch Controls */}
+          <div className="mt-6 w-full flex flex-col items-center gap-2 md:hidden">
+            <button
+              onClick={() => handleMove(0, -1)}
+              className="w-16 h-16 bg-slate-800 hover:bg-slate-700 active:bg-amber-600 border-2 border-slate-600 rounded-lg flex items-center justify-center text-2xl font-bold text-slate-300 transition-all shadow-lg"
+            >
+              ▲
+            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleMove(-1, 0)}
+                className="w-16 h-16 bg-slate-800 hover:bg-slate-700 active:bg-amber-600 border-2 border-slate-600 rounded-lg flex items-center justify-center text-2xl font-bold text-slate-300 transition-all shadow-lg"
+              >
+                ◀
+              </button>
+              <button
+                onClick={() => handleMove(0, 1)}
+                className="w-16 h-16 bg-slate-800 hover:bg-slate-700 active:bg-amber-600 border-2 border-slate-600 rounded-lg flex items-center justify-center text-2xl font-bold text-slate-300 transition-all shadow-lg"
+              >
+                ▼
+              </button>
+              <button
+                onClick={() => handleMove(1, 0)}
+                className="w-16 h-16 bg-slate-800 hover:bg-slate-700 active:bg-amber-600 border-2 border-slate-600 rounded-lg flex items-center justify-center text-2xl font-bold text-slate-300 transition-all shadow-lg"
+              >
+                ▶
+              </button>
+            </div>
           </div>
         </div>
       </main>
